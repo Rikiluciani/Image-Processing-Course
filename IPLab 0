@@ -1,0 +1,65 @@
+import ij.IJ;     
+     
+public class Code {     
+	     
+	public ImageAccess normalization(ImageAccess in) {     
+		ImageAccess out = new ImageAccess(in.nx, in.ny);     
+		// TODO: Add you code here     
+		double pixel=0.0;     
+		//Find maximum and minimum     
+		double max=in.getMaximum();     
+		double min=in.getMinimum();     
+		//Normalization     
+		for(int x=0; x<in.nx; x++){     
+			for(int y=0; y<in.ny; y++){     
+				pixel=in.getPixel(x, y);     
+				pixel=(pixel-min)/(max-min);     
+				out.putPixel(x, y, pixel);     
+			}     
+		}     
+		     
+		return out;     
+	}     
+	     
+	public ImageAccess[] pseudoColor(ImageAccess in, double kr, double kg, double kb) {     
+		ImageAccess norm = normalization(in);     
+		ImageAccess out[] = new ImageAccess[3];     
+		out[0] = new ImageAccess(in.nx, in.ny);     
+		out[1] = new ImageAccess(in.nx, in.ny);     
+		out[2] = new ImageAccess(in.nx, in.ny);     
+		// TODO: Add you code here     
+		double lambda=200.0;     
+		double sigma=0.07;     
+		double m=7.0;     
+		double gb=0.0;     
+		     
+		for(int x=0; x<in.nx; x++){     
+			for(int y=0; y<in.ny; y++){     
+			double pixel=norm.getPixel(x, y);     
+			double gr=255/(1+lambda*(Math.pow(pixel-kr,2)));     
+			double gg=255*(Math.exp(-(Math.pow(pixel-kg,2))/(2*Math.pow(sigma, 2))));     
+			     
+			if((1+m*(pixel-kb))>0 && pixel<kb)     
+				gb=255*(1+m*(pixel-kb));     
+			else if((1-m*(pixel-kb))>=0 && pixel>=kb)     
+				gb=255*(1-m*(pixel-kb));     
+			else     
+				gb=0.0;	     
+			     
+			out[0].putPixel(x, y, gr);     
+			out[1].putPixel(x, y, gg);     
+			out[2].putPixel(x, y, gb);     
+			     
+			}     
+		}     
+		     
+		return out;     
+	}     
+}     
+     
+    
+   
+  
+ 
+
+
