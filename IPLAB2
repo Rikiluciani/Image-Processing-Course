@@ -1,0 +1,221 @@
+import ij.IJ;
+
+import iplab.ImageAccess;
+
+import iplab.Operations;
+
+
+public class Code {
+
+	/*public void compareImplementation(ImageAccess in) {
+		Monitor.startChrono();
+		double HX[] = {1,0,1};
+		double HY[] = {-4,-2,-1,2,1,2,4};
+		double HXY[][] = {{-4,-2,-1,2,1,2,4}, {0,0,0,0,0,0,0},{-4,-2,-1,2,1,2,4}};
+		Monitor.log("Separable Mirror", correlate_Mirror(in, HX, HY));
+		Monitor.log("Separable Zero", correlate_ZeroPadding(in, HX, HY));
+		Monitor.log("Non-Separable Mirror", correlate_Mirror(in, HXY));
+		Monitor.log("Non-Separable Zero", correlate_ZeroPadding(in,HXY));
+	}*/
+	
+	public ImageAccess box(ImageAccess in, int LX, int LY, int N) {
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		double Hx[] = new double[LX];
+		double Hy[] = new double[LY];
+		for(int i = 0; i < LX; i++)
+			Hx[i] = 1;
+		for(int j = 0; j < LY; j++)
+			Hy[j] = 1;
+		
+		out = correlate_Mirror(in, Hx, Hy);
+		for(int i=1; i<N; i++){
+			out = correlate_Mirror(out, Hx, Hy);
+		}
+		return out; //change in to out
+	}	
+	
+	public ImageAccess hat(ImageAccess in, int LX, int LY, int N) {
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		double Hx[] = new double[2*LX+1];
+		double Hy[] = new double[2*LY+1];
+		for(int i = - LX; i <= LX; i++)
+			Hx[i+LX] = 1-Math.abs((double)i/11);
+		for(int j = - LY; j <= LY; j++)
+			Hy[j+LY] = 1-Math.abs((double)j/11);			
+		
+		out = correlate_Mirror(in, Hx, Hy);
+		for(int i=1; i<N; i++){
+			out = correlate_Mirror(out, Hx, Hy);
+		}
+		return out;	//change in to out
+	}
+	
+
+	public ImageAccess sharpen(ImageAccess in) {
+		
+		double S[][] = {{-1,-2,-1}, {-2,28,-2},{-1,-2,-1}};
+		for(int i = 0; i < 3; i++)
+			for(int j = 0; j < 3; j++)
+				S[i][j] = S[i][j]/16;
+		
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		out = correlate_Mirror(in, S);
+		return out;	//change in to out
+	}
+
+	public ImageAccess edgesHorizontal(ImageAccess in) {
+		
+		double Hx[] = {1, 2, 3, 6, 3, 2, 1};
+		double Hy[] = {-1, 0, 1};
+		for(int j = 0; j < Hx.length; j++)
+			Hx[j]=Hx[j]/6;
+		for(int j = 0; j < Hy.length; j++)
+			Hy[j]=Hy[j]/6;
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		out = correlate_Mirror(in, Hx, Hy);
+		
+		return out;	//change in to out
+	}
+
+	public ImageAccess correlate_ZeroPadding(ImageAccess in, double[][] mask) {
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		int mx = mask.length;
+		int my = mask[0].length;
+		for (int y = my/2; y < in.ny-my/2; y++)	
+		for (int x = mx/2; x < in.nx-mx/2; x++){
+			double[][] block = in.getNeighborhood(x, y, mx, my);
+			double sum = 0.0;
+			for (int i = 0; i < mx; i++)
+			for (int j = 0; j < my; j++)
+				sum += mask[i][j] * block[i][j];
+			out.putPixel(x, y, sum);
+		}
+		return out;
+	}
+	
+	public ImageAccess correlate_ZeroPadding(ImageAccess in, double[] maskX, double[] maskY) {
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		
+		for (int y = 0; y < in.ny; y++)	{
+			double u[] = in.getRow(y);
+			double v[] = correlate1D_ZeroPadding(u,maskX);
+			out.putRow(y, v);
+		}
+		
+		for (int x = 0; x < in.nx; x++) {
+			double u[] = out.getColumn(x);
+			double v[] = correlate1D_ZeroPadding(u,maskY);
+			out.putColumn(x, v);
+ 		}
+		return out; 
+	}
+	
+	private ImageAccess correlate_Mirror(ImageAccess in, double[][] mask){
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		int mx = mask.length;
+		int my = mask[0].length;
+		for (int y = 0; y < in.ny; y++)	
+			for (int x = 0; x < in.nx; x++){
+				double[][] block = in.getNeighborhood(x, y, mx, my);
+				double sum = 0.0;
+				for (int i = 0; i < mx; i++)
+				for (int j = 0; j < my; j++)
+					sum += mask[i][j] * block[i][j];
+				out.putPixel(x, y, sum);
+			}
+		
+		return out; //change in to out
+	}
+
+	private ImageAccess correlate_Mirror(ImageAccess in, double[] maskX, double[] maskY){
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		for (int x = 0; x < in.nx; x++) {
+			double u[] = in.getColumn(x);
+			double v[] = correlate1D_Mirror(u,maskY);
+			out.putColumn(x, v);
+ 		}
+		for (int y = 0; y < in.ny; y++)	{
+			double u[] = out.getRow(y);
+			double v[] = correlate1D_Mirror(u,maskX);
+			out.putRow(y, v);
+		}
+		return out; //change in to out
+	}
+	
+	private double[] correlate1D_ZeroPadding(double u[], double mask[]) {
+		int n = u.length;
+		int m = mask.length;
+		int origin = m / 2;
+		double v[] = new double[n];
+		for (int k = origin; k < n - origin; k++){
+			for(int i = -origin; i <= origin; i++){
+				v[k] += u[i + k] * mask[i + origin];
+			}
+		}
+		return v;
+	}
+	
+	private double[] correlate1D_Mirror(double u[], double mask[]){
+		int n = u.length;
+		int m = mask.length;
+		int origin = m / 2;
+		double v[] = new double[n];
+		
+		for (int k = 0; k < origin; k++){
+			for(int i = -origin; i <= origin; i++){
+				v[k] += u[Math.abs(i+k)] * mask[i+origin];
+			}
+		}
+		for (int k = origin; k < n - origin; k++){
+			for(int i = -origin; i <= origin; i++){
+				v[k] += u[i + k] * mask[i + origin];
+			}
+		}
+		for (int k = n - origin; k < n; k++){
+			for(int i = -origin; i <= origin; i++){
+				v[k] += u[n-1-Math.abs(i-(n-1-k))]*mask[i+origin];
+			}
+		}
+		
+		return v;
+	}
+	// Try both with box and with hat
+	public ImageAccess localNormalization(ImageAccess in, int L1, int L2) {
+		
+		ImageAccess out = new ImageAccess(in.nx, in.ny);
+		ImageAccess out1= new ImageAccess(in.nx, in.ny);
+		ImageAccess out2= new ImageAccess(in.nx, in.ny);
+		// filter [in] with LowPass Filter L1
+		out1 = Operations.subtract(in, box(in,L1,L1,1));
+		//out2 = Operations.multiply(out1, out1);
+		double pixel = 0.0;
+		for(int i = 0; i < in.nx; i++){
+			for(int j = 0; j < in.ny; j++){
+				pixel = out1.getPixel(i, j);
+				pixel = Math.pow(pixel,2);
+				out2.putPixel(i, j, pixel);
+			}
+		}
+		out2 = box(out2,L2,L2,1);
+		pixel = 0.0;
+		for(int i = 0; i < in.nx; i++){
+			for(int j = 0; j < in.ny; j++){
+				pixel = out2.getPixel(i, j);
+				pixel = Math.sqrt(pixel);
+				out2.putPixel(i, j, pixel);
+			}
+		}
+		out = Operations.divide(out1, out2);
+		
+		return out; //change in to out 
+	}
+
+
+}
+
+
+
+
+
+
+
